@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مهمة الأبطال: العظام والعضلات</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti Library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Tajawal -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        * {
+            font-family: 'Tajawal', sans-serif;
+            user-select: none;
+        }
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+        
+        /* Board header wooden texture */
+        .wood-header {
+            background: linear-gradient(180deg, #b45309 0%, #78350f 100%);
+            border: 4px solid #fef08a;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.5), inset 0 2px 4px rgba(255,255,255,0.4);
+        }
+        
+        .board-container {
+            background: linear-gradient(145deg, #1e3a8a 0%, #0f172a 100%);
+            border: 6px solid #3b82f6;
+            box-shadow: 0 20px 35px rgba(0,0,0,0.6);
+            border-radius: 2rem;
+            position: relative;
+        }
+
+        .board-tile {
+            position: relative;
+            transition: all 0.3s ease;
+            aspect-ratio: 1 / 1;
+            border-radius: 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 800;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3), inset 0 2px 4px rgba(255,255,255,0.4);
+            padding: 0.35rem;
+        }
+
+        .board-tile:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px rgba(0,0,0,0.4);
+        }
+
+        .pawn {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            border: 2px solid #ffffff;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.5);
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            color: white;
+            z-index: 20;
+        }
+
+        /* Dice styling */
+        .dice-box {
+            perspective: 600px;
+        }
+        .dice {
+            width: 65px;
+            height: 65px;
+            background: white;
+            border: 4px solid #f59e0b;
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.2rem;
+            font-weight: 900;
+            color: #1e3a8a;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-out;
+        }
+
+        .active-team-card {
+            animation: pulse-border 1.5s infinite alternate;
+        }
+
+        @keyframes pulse-border {
+            0% { border-color: rgba(245, 158, 11, 0.5); box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+            100% { border-color: rgba(245, 158, 11, 1); box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #3b82f6;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body class="p-2 sm:p-4 md:p-6 text-slate-100 min-h-screen flex flex-col justify-between">
+
+    <!-- TEAM SETUP MODAL -->
+    <div id="setupModal" class="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border-4 border-amber-500 p-6 flex flex-col gap-6 text-right">
+            <div class="text-center">
+                <div class="inline-block bg-gradient-to-r from-amber-500 to-amber-600 text-white p-4 rounded-3xl mb-3 shadow-lg border border-amber-300">
+                    <i class="fa-solid fa-bone text-5xl"></i>
+                </div>
+                <h1 class="text-3xl font-black text-amber-400">مهمة الأبطال: العظام والعضلات</h1>
+                <p class="text-slate-300 font-bold mt-1 text-sm">اختر عدد الفرق وأسماءها لبدء التحدي التنافسي الممتع!</p>
+            </div>
+
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block font-bold text-amber-300 mb-2 text-sm">عدد الفرق المشاركة:</label>
+                    <select id="setupTeamsCount" onchange="generateTeamInputs()" class="w-full bg-slate-800 text-amber-100 border-2 border-slate-600 font-bold p-3 rounded-2xl focus:outline-none focus:border-amber-500">
+                        <option value="2">فريقين (2)</option>
+                        <option value="3">3 فرق</option>
+                        <option value="4" selected>4 فرق</option>
+                    </select>
+                </div>
+
+                <div id="teamInputsContainer" class="flex flex-col gap-3 max-h-56 overflow-y-auto pr-1 custom-scrollbar">
+                    <!-- Dynamic team inputs will be generated here -->
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black text-xl py-4 rounded-2xl shadow-lg transition flex items-center justify-center gap-3 border-2 border-emerald-300">
+                <i class="fa-solid fa-play"></i>
+                <span>انطلاق اللعبة</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- MAIN INTERFACE -->
+    <div class="max-w-7xl mx-auto w-full flex-grow flex flex-col gap-4">
+        
+        <!-- HEADER BAR -->
+        <header class="wood-header text-white rounded-3xl p-4 text-center relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="bg-amber-400 text-amber-950 p-3 rounded-2xl font-black text-2xl shadow-inner border border-amber-200">
+                    <i class="fa-solid fa-child-reaching text-3xl"></i>
+                </div>
+                <div class="text-right">
+                    <h1 class="text-2xl md:text-3xl font-black text-yellow-300 drop-shadow-md">مهمة الأبطال العظام والعضلات</h1>
+                    <p class="text-xs md:text-sm font-bold text-amber-100">العلوم للصف الخامس الابتدائي - الفصل الدراسي الأول</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 bg-amber-950/60 p-2 rounded-2xl border border-amber-400/40">
+                <button onclick="openSetupModal()" class="bg-amber-600 hover:bg-amber-500 active:scale-95 text-white font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-md border border-amber-300 text-xs sm:text-sm">
+                    <i class="fa-solid fa-users-gear"></i>
+                    <span>تعديل الفرق</span>
+                </button>
+                <button onclick="resetGame()" class="bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold px-3.5 py-2 rounded-xl transition flex items-center gap-2 shadow-md border border-rose-300 text-xs sm:text-sm">
+                    <i class="fa-solid fa-rotate-right"></i>
+                    <span>إعادة اللعبة</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- GAME AREA GRID -->
+        <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-grow">
+            
+            <!-- LEFT / CENTER: BOARD AND CONTROLS -->
+            <div class="lg:col-span-3 flex flex-col gap-4">
+                
+                <!-- BOARD GRID CONTAINER -->
+                <div class="board-container p-3 sm:p-5 flex-grow flex flex-col justify-center">
+                    <div id="boardGrid" class="grid grid-cols-4 sm:grid-cols-6 gap-2 sm:gap-3 relative">
+                        <!-- 24 Board tiles generated via JS -->
+                    </div>
+                </div>
+
+                <!-- CONTROLS & DICE SECTION -->
+                <div class="bg-slate-900/90 border-2 border-slate-700 rounded-2xl p-4 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+                    
+                    <!-- CURRENT TURN TEAM DISPLAY -->
+                    <div class="flex items-center gap-3 w-full sm:w-auto">
+                        <div id="turnBadge" class="w-12 h-12 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg border-2 border-white/20">
+                            1
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs text-amber-400 font-bold block">الدور الحالي:</span>
+                            <span id="turnTeamName" class="text-xl font-black text-white">الفريق الأول</span>
+                        </div>
+                    </div>
+
+                    <!-- ROLL DICE CONTROLS -->
+                    <div class="flex items-center gap-5">
+                        <div class="dice-box flex items-center justify-center">
+                            <div id="dice" class="dice">
+                                <i class="fa-solid fa-dice-d6"></i>
+                            </div>
+                        </div>
+
+                        <button id="rollBtn" onclick="rollDice()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 active:scale-95 text-white font-black text-lg px-8 py-3.5 rounded-2xl shadow-xl transition flex items-center gap-3 border-2 border-emerald-300">
+                            <i class="fa-solid fa-dice text-2xl"></i>
+                            <span>رمي النرد</span>
+                        </button>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- RIGHT SIDEBAR: LEADERBOARD & LESSON SUMMARY -->
+            <div class="lg:col-span-1 flex flex-col gap-4">
+                
+                <!-- LEADERBOARD -->
+                <div class="bg-slate-900/90 border-2 border-slate-700 rounded-3xl p-4 shadow-xl flex flex-col gap-3">
+                    <h2 class="text-lg font-black text-amber-400 flex items-center gap-2 border-b border-slate-700 pb-2">
+                        <i class="fa-solid fa-trophy text-yellow-400"></i>
+                        <span>لوحة الصدارة (Leaderboard)</span>
+                    </h2>
+                    <div id="leaderboard" class="flex flex-col gap-2.5 max-h-72 overflow-y-auto custom-scrollbar">
+                        <!-- Dynamic Leaderboard Cards -->
+                    </div>
+                </div>
+
+                <!-- QUICK LESSON REFERENCE (FROM ATTACHED IMAGE) -->
+                <div class="bg-slate-900/90 border-2 border-amber-500/40 rounded-3xl p-4 text-xs text-slate-300 leading-relaxed flex flex-col gap-2.5 shadow-lg flex-grow">
+                    <div class="font-black text-sm text-amber-300 flex items-center gap-2 border-b border-slate-700 pb-1.5">
+                        <i class="fa-solid fa-book-bookmark text-amber-400"></i>
+                        <span>ملخص الدرس الأساسي (العظام والعضلات):</span>
+                    </div>
+                    
+                    <div class="space-y-2 text-right">
+                        <p><strong class="text-amber-200">تكوين الجسم:</strong> عظام صلبة وقوية + عضلات مرنة.</p>
+                        <p><strong class="text-amber-200">كيف يتحرك الجسم؟</strong> لأن العضلات تنقبض وتنبسط بالتبادل.</p>
+                        <p><strong class="text-amber-200">عند ثني الذراع:</strong> تنقبض العضلة الأمامية (تزداد صلابة) وتنبسط العضلة الخلفية.</p>
+                        <p><strong class="text-amber-200">عند فرد الذراع:</strong> تنقبض العضلة الخلفية (تزداد صلابة) وتنبسط العضلة الأمامية.</p>
+                        <p><strong class="text-amber-200">تعريف العضلات:</strong> الأجزاء اللينة داخل أجسامنا التي تشد العظام وتساعدنا على الحركة.</p>
+                        <p><strong class="text-amber-200">المفصل:</strong> الجزء الذي ينثني عنده الذراع وترتبط عنده العضلات.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- QUESTION MODAL -->
+    <div id="questionModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-xl rounded-3xl shadow-2xl border-4 border-indigo-500 overflow-hidden text-right">
+            
+            <!-- MODAL HEADER -->
+            <div id="modalHeader" class="bg-indigo-600 text-white p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <span id="modalTeamBadge" class="w-9 h-9 rounded-xl bg-white text-indigo-900 font-black flex items-center justify-center shadow-md">1</span>
+                    <h3 id="modalTitle" class="font-black text-lg">سؤال الخانة</h3>
+                </div>
+                <div class="text-xs bg-indigo-800/80 px-3 py-1.5 rounded-full font-bold text-amber-300 border border-indigo-400/30">+10 نقاط</div>
+            </div>
+
+            <!-- MODAL BODY -->
+            <div class="p-6 flex flex-col gap-5">
+                <p id="questionText" class="text-lg sm:text-xl font-extrabold text-slate-100 leading-relaxed">
+                    السؤال ظهر هنا...
+                </p>
+
+                <div id="optionsContainer" class="flex flex-col gap-3">
+                    <!-- Dynamic Answer Buttons -->
+                </div>
+
+                <!-- HINT SECTION -->
+                <div class="pt-3 border-t border-slate-800 flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <button onclick="toggleHint()" class="text-amber-400 hover:text-amber-300 font-bold text-xs sm:text-sm flex items-center gap-2 bg-amber-950/50 hover:bg-amber-900/60 px-3.5 py-2 rounded-xl border border-amber-500/40 transition">
+                            <i class="fa-regular fa-lightbulb text-amber-400 text-base animate-pulse"></i>
+                            <span>إظهار التلميح</span>
+                        </button>
+                    </div>
+                    <div id="hintBox" class="hidden bg-amber-950/80 border-r-4 border-amber-400 p-3 rounded-xl text-xs sm:text-sm text-amber-100 font-medium">
+                        <i class="fa-solid fa-circle-info text-amber-400 ml-1"></i>
+                        <span id="hintText">تلميح الدرس سيظهر هنا...</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MODAL FOOTER -->
+            <div id="modalFooter" class="bg-slate-950 p-4 border-t border-slate-800 flex items-center justify-between hidden">
+                <div id="feedbackMsg" class="font-black text-sm sm:text-base flex items-center gap-2"></div>
+                <button onclick="closeModalAndNext()" class="bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black px-6 py-2.5 rounded-xl transition border border-indigo-300 text-sm">
+                    التالي (الفريق التالي) <i class="fa-solid fa-arrow-left mr-1"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WINNER MODAL -->
+    <div id="winnerModal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 w-full max-w-lg rounded-3xl shadow-2xl border-4 border-yellow-400 p-6 text-center flex flex-col items-center gap-5">
+            <div class="w-24 h-24 bg-yellow-400/20 rounded-full flex items-center justify-center text-yellow-400 text-5xl shadow-inner border-2 border-yellow-400">
+                <i class="fa-solid fa-crown animate-bounce"></i>
+            </div>
+            <h2 class="text-3xl font-black text-amber-400">مبارك للفريق الفائز!</h2>
+            <p id="winnerText" class="text-lg font-bold text-emerald-400">الفريق الأول هو البطل العظيم!</p>
+
+            <div class="w-full bg-slate-950 p-4 rounded-2xl border border-slate-800 text-right">
+                <h4 class="font-black text-amber-300 mb-3 border-b border-slate-800 pb-2">الترتيب النهائي للفرق:</h4>
+                <div id="finalScores" class="flex flex-col gap-2"></div>
+            </div>
+
+            <button onclick="resetGame(); closeModal('winnerModal');" class="bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 active:scale-95 text-amber-950 font-black text-lg px-8 py-3.5 rounded-2xl shadow-xl transition flex items-center gap-2 border-2 border-yellow-200">
+                <i class="fa-solid fa-rotate-right text-xl"></i>
+                <span>اللعب من جديد</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Questions based precisely on attached lesson images (Pages 9 & 10)
+        const questionsData = [
+            {
+                id: 1,
+                question: "يتكون جسم الإنسان من:",
+                options: [
+                    "عظام صلبة وقوية، وعضلات مرنة",
+                    "عظام مرنة وعضلات صلبة فقط",
+                    "عظام صلبة فقط بدون عضلات",
+                    "عضلات سائلة وعظام لينة"
+                ],
+                correct: 0,
+                hint: "في بداية الدرس: يتكون جسم الإنسان من عظام صلبة وقوية، وعضلات مرنة."
+            },
+            {
+                id: 2,
+                question: "يستطيع جسم الإنسان أن يتحرك؛ لأن العضلات:",
+                options: [
+                    "تنقبض وتنبسط",
+                    "تنقبض فقط طوال الوقت",
+                    "تنبسط فقط طوال الوقت",
+                    "تتصلب ولا تتغير"
+                ],
+                correct: 0,
+                hint: "انظر فقرة (انقباض وانبساط العضلات): يتحرك الجسم لأن العضلات تنقبض وتنبسط."
+            },
+            {
+                id: 3,
+                question: "عند ثني الذراع، ماذا يحدث للعضلة الأمامية (عضلة ثني الذراع)؟",
+                options: [
+                    "تنقبض وتصبح صلبة",
+                    "تنبسط وتصبح لينة",
+                    "تتوقف عن الحركة",
+                    "تتلاشى وتختفي"
+                ],
+                correct: 0,
+                hint: "عند ثني الذراع: تنقبض العضلة الأمامية (عضلة ثني الذراع) وتصبح صلبة."
+            },
+            {
+                id: 4,
+                question: "عند ثني الذراع، ماذا يحدث للعضلة الخلفية (عضلة فرد الذراع)؟",
+                options: [
+                    "تنبسط",
+                    "تنقبض وتزداد صلابتها",
+                    "تتصلب جداً",
+                    "تنكسر"
+                ],
+                correct: 0,
+                hint: "عند ثني الذراع: العضلة الأمامية تنقبض، بينما العضلة الخلفية تنبسط."
+            },
+            {
+                id: 5,
+                question: "عند فرد الذراع، العضلة التي تنقبض وتصبح صلبة هي:",
+                options: [
+                    "العضلة الخلفية (عضلة فرد الذراع)",
+                    "العضلة الأمامية (عضلة ثني الذراع)",
+                    "عضلة الأصابع",
+                    "لا توجد عضلة تنقبض"
+                ],
+                correct: 0,
+                hint: "عند فرد الذراع: تنقبض العضلة الخلفية وتصبح صلبة."
+            },
+            {
+                id: 6,
+                question: "عند فرد الذراع، العضلة التي تنبسط هي:",
+                options: [
+                    "العضلة الأمامية",
+                    "العضلة الخلفية",
+                    "عضلة الكتف فقط",
+                    "جميع العضلات"
+                ],
+                correct: 0,
+                hint: "عند فرد الذراع: العضلة الخلفية تنقبض، وتنبسط العضلة الأمامية."
+            },
+            {
+                id: 7,
+                question: "نستنتج مما سبق أن عضلات جسم الإنسان تعمل:",
+                options: [
+                    "بالتبادل (فعندما تنقبض إحدى العضلات ترتخي العضلة المقابلة لها)",
+                    "في نفس الوقت بنفس الانقباض",
+                    "بدون أي تنسيق أو انقباض",
+                    "بشكل عشوائي فردي"
+                ],
+                correct: 0,
+                hint: "الاستنتاج: العضلات تعمل بالتبادل؛ عندما تنقبض إحداها ترتخي (تنبسط) المقابلة لها."
+            },
+            {
+                id: 8,
+                question: "ما المقصود بـ (العضلات) كما ورد بالدرس؟",
+                options: [
+                    "الأجزاء اللينة داخل أجسامنا، التي تشد العظام وتساعدنا على الحركة",
+                    "العظام القوية الصلبة في الهيكل العظمي",
+                    "الجلد الخارجي المغطي للجسم",
+                    "الأجزاء الصلبة غير القابلة للانحناء"
+                ],
+                correct: 0,
+                hint: "تعريف العضلات: الأجزاء اللينة داخل أجسامنا التي تشد العظام وتساعدنا على الحركة."
+            },
+            {
+                id: 9,
+                question: "الجزء الذي ينثني عنده الذراع وترتبط عنده العضلات يُسمى:",
+                options: [
+                    "المفصل",
+                    "الجمجمة",
+                    "العمود الفقري",
+                    "الوتر الصلب"
+                ],
+                correct: 0,
+                hint: "ملحوظة هامّة: الجزء الذي ينثني عنده الذراع وترتبط عنده العضلات يُسمى المفصل."
+            },
+            {
+                id: 10,
+                question: "عند حمل جسم ثقيل، يزداد انقباض العضلات مما يعني أنها:",
+                options: [
+                    "تزداد صلابتها",
+                    "تقل صلابتها وتصبح مرنة",
+                    "تتوقف عن العمل تماماً",
+                    "تنفصل عن العظام"
+                ],
+                correct: 0,
+                hint: "ملحوظة بالدرس: عند حمل جسم ثقيل يزداد انقباض العضلات أي تزداد صلابتها."
+            },
+            {
+                id: 11,
+                question: "ضع علامة (صح أم خطأ): «تزداد صلابة العضلة الخلفية للذراع عند فرده»",
+                options: [
+                    "عبارة صحيحة",
+                    "عبارة خاطئة",
+                    "صحيحة فقط عند الثني",
+                    "غير معروفة"
+                ],
+                correct: 0,
+                hint: "طبّق بنفسك (صفحة 10): عند فرد الذراع تنقبض العضلة الخلفية وتزداد صلابتها."
+            },
+            {
+                id: 12,
+                question: "ضع علامة (صح أم خطأ): «يستطيع جسم الإنسان أن يتحرك لأن العضلات تنقبض فقط»",
+                options: [
+                    "عبارة خاطئة (لأنها تنقبض وتنبسط)",
+                    "عبارة صحيحة تماماً",
+                    "صحيحة للذراع فقط",
+                    "صحيحة للأرجل فقط"
+                ],
+                correct: 0,
+                hint: "راجع أسئلة المراجعة صفحة 10: خطأ، لأن الحركة تتطلب انقباض وانبساط بالتبادل."
+            }
+        ];
+
+        // Teams Configuration Palette
+        const DEFAULT_TEAMS = [
+            { id: 0, name: "فريق الأبطال", color: "#ef4444", icon: "fa-user-ninja" },
+            { id: 1, name: "فريق النجوم", color: "#f59e0b", icon: "fa-user-astronaut" },
+            { id: 2, name: "فريق الفرسان", color: "#10b981", icon: "fa-user-shield" },
+            { id: 3, name: "فريق الصقور", color: "#3b82f6", icon: "fa-user-tie" }
+        ];
+
+        // Board Tiles Configuration (24 Tiles matching image layout)
+        const BOARD_TILES = [
+            { id: 1, title: "البداية 🚀", bg: "bg-emerald-600 border-emerald-400 text-white" },
+            { id: 2, title: "2", bg: "bg-slate-800 border-sky-500 text-sky-200" },
+            { id: 3, title: "مهمة ⚡", bg: "bg-amber-600 border-amber-400 text-white" },
+            { id: 4, title: "4", bg: "bg-slate-800 border-sky-500 text-sky-200" },
+            { id: 5, title: "5", bg: "bg-slate-800 border-rose-500 text-rose-200" },
+            { id: 6, title: "6", bg: "bg-slate-800 border-sky-500 text-sky-200" },
+            { id: 7, title: "مكافأة 🌟", bg: "bg-yellow-500 border-yellow-300 text-slate-950 font-black" },
+            { id: 8, title: "8", bg: "bg-slate-800 border-rose-500 text-rose-200" },
+            { id: 9, title: "9", bg: "bg-slate-800 border-amber-500 text-amber-200" },
+            { id: 10, title: "10", bg: "bg-slate-800 border-emerald-500 text-emerald-200" },
+            { id: 11, title: "اكتشف 🔍", bg: "bg-purple-600 border-purple-400 text-white" },
+            { id: 12, title: "12", bg: "bg-slate-800 border-rose-500 text-rose-200" },
+            { id: 13, title: "تحدي 🎯", bg: "bg-sky-600 border-sky-400 text-white" },
+            { id: 14, title: "14", bg: "bg-slate-800 border-emerald-500 text-emerald-200" },
+            { id: 15, title: "15", bg: "bg-slate-800 border-rose-500 text-rose-200" },
+            { id: 16, title: "16", bg: "bg-slate-800 border-purple-500 text-purple-200" },
+            { id: 17, title: "17", bg: "bg-slate-800 border-emerald-500 text-emerald-200" },
+            { id: 18, title: "الدليل 🔎", bg: "bg-amber-600 border-amber-400 text-white" },
+            { id: 19, title: "19", bg: "bg-slate-800 border-rose-500 text-rose-200" },
+            { id: 20, title: "تقدم 🏃‍♂️", bg: "bg-teal-600 border-teal-400 text-white" },
+            { id: 21, title: "21", bg: "bg-slate-800 border-purple-500 text-purple-200" },
+            { id: 22, title: "22", bg: "bg-slate-800 border-emerald-500 text-emerald-200" },
+            { id: 23, title: "23", bg: "bg-slate-800 border-sky-500 text-sky-200" },
+            { id: 24, title: "النهاية 🏆", bg: "bg-rose-600 border-rose-400 text-white font-black" }
+        ];
+
+        // State variables
+        let teams = [];
+        let currentTurnIndex = 0;
+        let isRolling = false;
+        let currentQuestion = null;
+
+        window.onload = function() {
+            generateTeamInputs();
+            startGame();
+        };
+
+        function generateTeamInputs() {
+            const count = parseInt(document.getElementById('setupTeamsCount').value);
+            const container = document.getElementById('teamInputsContainer');
+            container.innerHTML = '';
+
+            for (let i = 0; i < count; i++) {
+                const cfg = DEFAULT_TEAMS[i];
+                const div = document.createElement('div');
+                div.className = "flex items-center gap-3 bg-slate-800 p-3 rounded-2xl border border-slate-700";
+                div.innerHTML = `
+                    <div class="w-8 h-8 rounded-full text-white flex items-center justify-center font-bold" style="background-color: ${cfg.color}">
+                        <i class="fa-solid ${cfg.icon}"></i>
+                    </div>
+                    <input type="text" id="teamNameInput-${i}" value="${cfg.name}" class="flex-grow bg-slate-900 border border-slate-600 font-bold px-3 py-1.5 rounded-xl text-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 text-sm">
+                `;
+                container.appendChild(div);
+            }
+        }
+
+        function openSetupModal() {
+            document.getElementById('setupModal').classList.remove('hidden');
+        }
+
+        function startGame() {
+            const count = parseInt(document.getElementById('setupTeamsCount').value);
+            teams = [];
+            for (let i = 0; i < count; i++) {
+                const nameVal = document.getElementById(`teamNameInput-${i}`)?.value || DEFAULT_TEAMS[i].name;
+                teams.push({
+                    ...DEFAULT_TEAMS[i],
+                    name: nameVal,
+                    position: 1,
+                    score: 0
+                });
+            }
+
+            currentTurnIndex = 0;
+            isRolling = false;
+
+            document.getElementById('setupModal').classList.add('hidden');
+            renderBoard();
+            renderPawns();
+            updateLeaderboard();
+            updateTurnDisplay();
+        }
+
+        function resetGame() {
+            openSetupModal();
+        }
+
+        function renderBoard() {
+            const boardGrid = document.getElementById('boardGrid');
+            boardGrid.innerHTML = '';
+
+            BOARD_TILES.forEach((tile) => {
+                const tileEl = document.createElement('div');
+                tileEl.id = `cell-${tile.id}`;
+                tileEl.className = `board-tile border-2 ${tile.bg}`;
+
+                tileEl.innerHTML = `
+                    <div class="w-full flex justify-between items-center text-[10px] font-extrabold opacity-80 px-0.5">
+                        <span>#${tile.id}</span>
+                    </div>
+                    <div class="text-xs sm:text-sm font-black my-auto text-center leading-tight">
+                        ${tile.title}
+                    </div>
+                    <div id="pawn-container-${tile.id}" class="w-full min-h-[28px] flex items-center justify-center gap-1 flex-wrap"></div>
+                `;
+                boardGrid.appendChild(tileEl);
+            });
+        }
+
+        function renderPawns() {
+            BOARD_TILES.forEach(tile => {
+                const container = document.getElementById(`pawn-container-${tile.id}`);
+                if (container) container.innerHTML = '';
+            });
+
+            teams.forEach(team => {
+                const container = document.getElementById(`pawn-container-${team.position}`);
+                if (container) {
+                    const pawn = document.createElement('div');
+                    pawn.className = `pawn`;
+                    pawn.style.backgroundColor = team.color;
+                    pawn.title = team.name;
+                    pawn.innerHTML = `<i class="fa-solid ${team.icon}"></i>`;
+                    container.appendChild(pawn);
+                }
+            });
+        }
+
+        function updateLeaderboard() {
+            const leaderboard = document.getElementById('leaderboard');
+            leaderboard.innerHTML = '';
+
+            // Sort by position then score
+            const sortedTeams = [...teams].sort((a, b) => b.position - a.position || b.score - a.score);
+
+            sortedTeams.forEach((team) => {
+                const isActive = teams[currentTurnIndex].id === team.id;
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-2xl border-2 flex items-center justify-between transition-all ${
+                    isActive ? 'bg-slate-800 border-amber-400 shadow-lg active-team-card' : 'bg-slate-900/60 border-slate-800'
+                }`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-2.5">
+                        <div class="w-8 h-8 rounded-xl text-white flex items-center justify-center font-bold text-sm shadow border border-white/20" style="background-color: ${team.color}">
+                            <i class="fa-solid ${team.icon}"></i>
+                        </div>
+                        <div class="text-right">
+                            <div class="font-black text-sm text-slate-100">${team.name}</div>
+                            <div class="text-[11px] font-bold text-slate-400">الخانة: ${team.position} / 24</div>
+                        </div>
+                    </div>
+                    <div class="text-left">
+                        <span class="text-lg font-black text-amber-400">${team.score}</span>
+                        <span class="text-xs font-bold text-slate-400"> ن</span>
+                    </div>
+                `;
+                leaderboard.appendChild(card);
+            });
+        }
+
+        function updateTurnDisplay() {
+            const currentTeam = teams[currentTurnIndex];
+            const badge = document.getElementById('turnBadge');
+            const teamName = document.getElementById('turnTeamName');
+
+            badge.style.backgroundColor = currentTeam.color;
+            badge.innerHTML = `<i class="fa-solid ${currentTeam.icon}"></i>`;
+            teamName.textContent = currentTeam.name;
+
+            updateLeaderboard();
+        }
+
+        function rollDice() {
+            if (isRolling) return;
+            isRolling = true;
+
+            const rollBtn = document.getElementById('rollBtn');
+            rollBtn.disabled = true;
+            rollBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
+            const dice = document.getElementById('dice');
+            dice.style.transform = 'rotate(360deg) scale(1.1)';
+
+            let rollCount = 0;
+            const interval = setInterval(() => {
+                const tempRoll = Math.floor(Math.random() * 6) + 1;
+                dice.innerHTML = `<span class="font-black">${tempRoll}</span>`;
+                rollCount++;
+
+                if (rollCount > 10) {
+                    clearInterval(interval);
+                    dice.style.transform = 'rotate(0deg) scale(1)';
+
+                    const finalRoll = Math.floor(Math.random() * 6) + 1;
+                    dice.innerHTML = `<span class="font-black text-amber-600">${finalRoll}</span>`;
+
+                    setTimeout(() => {
+                        moveActiveTeam(finalRoll);
+                    }, 400);
+                }
+            }, 80);
+        }
+
+        function moveActiveTeam(steps) {
+            const currentTeam = teams[currentTurnIndex];
+            let targetPosition = currentTeam.position + steps;
+
+            if (targetPosition > 24) {
+                targetPosition = 24;
+            }
+
+            let currentStep = currentTeam.position;
+
+            const moveInterval = setInterval(() => {
+                if (currentStep < targetPosition) {
+                    currentStep++;
+                    currentTeam.position = currentStep;
+                    renderPawns();
+                    updateLeaderboard();
+                } else {
+                    clearInterval(moveInterval);
+                    isRolling = false;
+
+                    const rollBtn = document.getElementById('rollBtn');
+                    rollBtn.disabled = false;
+                    rollBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+
+                    if (currentTeam.position === 24) {
+                        triggerWin(currentTeam);
+                    } else {
+                        openQuestionModal(currentTeam.position);
+                    }
+                }
+            }, 250);
+        }
+
+        function openQuestionModal(tileId) {
+            const qIndex = (tileId - 1) % questionsData.length;
+            currentQuestion = questionsData[qIndex];
+            const activeTeam = teams[currentTurnIndex];
+
+            document.getElementById('modalTeamBadge').style.backgroundColor = activeTeam.color;
+            document.getElementById('modalTeamBadge').textContent = activeTeam.name.slice(0, 1);
+            document.getElementById('modalTitle').textContent = `سؤال الخانة رقم ${tileId} - (${activeTeam.name})`;
+            document.getElementById('questionText').textContent = currentQuestion.question;
+
+            document.getElementById('hintBox').classList.add('hidden');
+            document.getElementById('modalFooter').classList.add('hidden');
+
+            const optionsContainer = document.getElementById('optionsContainer');
+            optionsContainer.innerHTML = '';
+
+            currentQuestion.options.forEach((optText, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-right p-3.5 rounded-2xl border-2 border-slate-700 bg-slate-800 hover:border-indigo-400 hover:bg-slate-700/80 font-bold text-slate-200 transition flex items-center justify-between group";
+                btn.onclick = () => checkAnswer(index, btn);
+
+                btn.innerHTML = `
+                    <span class="flex items-center gap-3">
+                        <span class="w-7 h-7 rounded-xl bg-slate-700 text-slate-300 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center text-xs font-black transition">${index + 1}</span>
+                        <span class="text-sm sm:text-base">${optText}</span>
+                    </span>
+                    <i class="fa-regular fa-circle text-slate-500 group-hover:text-indigo-400 text-lg"></i>
+                `;
+                optionsContainer.appendChild(btn);
+            });
+
+            document.getElementById('hintText').textContent = currentQuestion.hint;
+            document.getElementById('questionModal').classList.remove('hidden');
+        }
+
+        function toggleHint() {
+            document.getElementById('hintBox').classList.toggle('hidden');
+        }
+
+        function checkAnswer(selectedIndex, btnElement) {
+            const optionsContainer = document.getElementById('optionsContainer');
+            const buttons = optionsContainer.querySelectorAll('button');
+            buttons.forEach(b => b.disabled = true);
+
+            const activeTeam = teams[currentTurnIndex];
+            const footer = document.getElementById('modalFooter');
+            const feedbackMsg = document.getElementById('feedbackMsg');
+
+            if (selectedIndex === currentQuestion.correct) {
+                btnElement.classList.remove('border-slate-700', 'bg-slate-800');
+                btnElement.classList.add('bg-emerald-950/80', 'border-emerald-500', 'text-emerald-200');
+                btnElement.querySelector('i').className = "fa-solid fa-circle-check text-emerald-400 text-xl";
+
+                activeTeam.score += 10;
+                feedbackMsg.className = "font-black text-sm sm:text-base text-emerald-400 flex items-center gap-2";
+                feedbackMsg.innerHTML = `<i class="fa-solid fa-circle-check text-2xl"></i> إجابة صحيحة! ممتاز جداً (+10 نقاط)`;
+            } else {
+                btnElement.classList.remove('border-slate-700', 'bg-slate-800');
+                btnElement.classList.add('bg-rose-950/80', 'border-rose-500', 'text-rose-200');
+                btnElement.querySelector('i').className = "fa-solid fa-circle-xmark text-rose-400 text-xl";
+
+                const correctBtn = buttons[currentQuestion.correct];
+                correctBtn.classList.remove('border-slate-700', 'bg-slate-800');
+                correctBtn.classList.add('bg-emerald-950/50', 'border-emerald-500/80', 'text-emerald-300');
+
+                feedbackMsg.className = "font-black text-sm sm:text-base text-rose-400 flex items-center gap-2";
+                feedbackMsg.innerHTML = `<i class="fa-solid fa-circle-xmark text-2xl"></i> إجابة خاطئة! الإجابة الصحيحة هي الإجابة (${currentQuestion.correct + 1})`;
+            }
+
+            footer.classList.remove('hidden');
+            updateLeaderboard();
+        }
+
+        function closeModalAndNext() {
+            document.getElementById('questionModal').classList.add('hidden');
+            // Strict Turn rotation to next team regardless of answer
+            currentTurnIndex = (currentTurnIndex + 1) % teams.length;
+            updateTurnDisplay();
+        }
+
+        function triggerWin(winnerTeam) {
+            if (typeof confetti === 'function') {
+                confetti({ particleCount: 150, spread: 90, origin: { y: 0.6 } });
+            }
+
+            document.getElementById('winnerText').textContent = `🎉 تهانينا لـ (${winnerTeam.name}) الوصول لخط النهاية بالمركز الأول!`;
+
+            const finalScores = document.getElementById('finalScores');
+            finalScores.innerHTML = '';
+
+            const sorted = [...teams].sort((a, b) => b.position - a.position || b.score - a.score);
+            sorted.forEach((team, index) => {
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-3 bg-slate-900 rounded-xl border border-slate-800 font-extrabold text-slate-200 text-sm";
+                item.innerHTML = `
+                    <span class="flex items-center gap-3">
+                        <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs text-white" style="background-color:${team.color}">${index + 1}</span>
+                        <span>${team.name}</span>
+                    </span>
+                    <span class="text-amber-400">${team.score} نقطة (الخانة: ${team.position})</span>
+                `;
+                finalScores.appendChild(item);
+            });
+
+            document.getElementById('winnerModal').classList.remove('hidden');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
